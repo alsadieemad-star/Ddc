@@ -1,1 +1,74 @@
+from flask import Flask, render_center, request, jsonify, send_file
+import pandas as pd
+from pymarc import Record, Field
+import io
+
+app = Flask(__name__)
+
+# --- ACADEMIC MAPPING DATA (From your provided list) ---
+# This dictionary powers the "Auto-Classify" feature
+LCC_DDC_MAP = {
+    "AC": {"ddc": "081-089", "label": "Collections. Series. Collected works"},
+    "AE": {"ddc": "031-039", "label": "Encyclopedias"},
+    "AG": {"ddc": "030", "label": "Dictionaries & General Reference"},
+    "AI": {"ddc": "050", "label": "Periodicals--Indexes"},
+    "AM": {"ddc": "069", "label": "Museums. Collectors and collecting"},
+    "AN": {"ddc": "071-079", "label": "Newspapers"},
+    "AZ": {"ddc": "001.3", "label": "Humanities / History of scholarship"},
+    "B":  {"ddc": "100-109", "label": "Philosophy"},
+    "BC": {"ddc": "160", "label": "Logic"},
+    "BF": {"ddc": "150", "label": "Psychology"},
+    "BL": {"ddc": "291-295", "label": "Religions. Mythology"},
+    "BP": {"ddc": "297", "label": "Islam. Bahaism. Theosophy"},
+    "BQ": {"ddc": "294.3", "label": "Buddhism"},
+    "E":  {"ddc": "973", "label": "America / United States History"},
+    "DU": {"ddc": "994", "label": "Oceania / Australia History"},
+}
+
+library_db = []
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/add_book', methods=['POST'])
+def add_book():
+    data = request.json
+    lcc_code = data.get('lcc', '').upper().strip()[:2]
+    
+    # Mapping Logic
+    mapping = LCC_DDC_MAP.get(lcc_code, {"ddc": "Unknown", "label": "General"})
+    ddc_result = mapping['ddc']
+    
+    # Create Professional MARC21 Record
+    record = Record()
+    record.add_field(Field(tag='020', subfields=['a', data.get('isbn')]))
+    record.add_field(Field(tag='050', subfields=['a', data.get('lcc')]))
+    record.add_field(Field(tag='082', subfields=['a', ddc_result]))
+    record.add_field(Field(tag='100', subfields=['a', data.get('author')]))
+    record.add_field(Field(tag='245', subfields=['a', data.get('title')]))
+    
+    entry = {
+        "id": len(library_db) + 1,
+        "title": data.get('title'),
+        "author": data.get('author'),
+        "isbn": data.get('isbn'),
+        "lcc": data.get('lcc'),
+        "ddc": ddc_result,
+        "marc_preview": record.as_marc().hex()[:50] + "..."
+    }
+    library_db.append(entry)
+    return jsonify(entry)
+
+@app.route('/export')
+def export():
+    df = pd.DataFrame(library_db)
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False)
+    output.seek(0)
+    return send_file(output, attachment_filename="Library_Catalog.xlsx", as_attachment=True)
+
+if __name__ == '__main__':
+    app.run(debug=True)
 
