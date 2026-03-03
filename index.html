@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Academic Library Management System</title>
+    <link href="https://cdn.jsdelivr.net" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .navbar { background-color: #1a237e; } /* Academic Blue */
+        .card-header { background-color: #eeeeee; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark mb-4">
+        <div class="container">
+            <span class="navbar-brand">🏛️ Integrated Academic Cataloging System (MARC21)</span>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row">
+            <!-- Add Book Section -->
+            <div class="col-md-4">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">Add New Catalog Entry</div>
+                    <div class="card-body">
+                        <div class="mb-2"><label>Title (245$a)</label><input id="title" class="form-control"></div>
+                        <div class="mb-2"><label>Author (100$a)</label><input id="author" class="form-control"></div>
+                        <div class="mb-2"><label>LCC Code (e.g., BP)</label><input id="lcc" class="form-control"></div>
+                        <div class="mb-3"><label>ISBN (020$a)</label><input id="isbn" class="form-control"></div>
+                        <button onclick="addBook()" class="btn btn-primary w-100">Add & Classify</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="col-md-8">
+                <div class="card shadow-sm">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        Catalog Search
+                        <a href="/export" class="btn btn-sm btn-success">📊 Export to Excel</a>
+                    </div>
+                    <div class="card-body">
+                        <div class="input-group mb-3">
+                            <input type="text" id="searchInp" class="form-control" placeholder="Search title...">
+                            <button class="btn btn-outline-secondary" onclick="search('starts')">Starts With</button>
+                            <button class="btn btn-outline-secondary" onclick="search('contains')">Contains</button>
+                        </div>
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr><th>Title</th><th>Author</th><th>LCC</th><th>DDC</th><th>MARC21</th></tr>
+                            </thead>
+                            <tbody id="resultBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let fullData = [];
+
+        async function addBook() {
+            const data = {
+                title: document.getElementById('title').value,
+                author: document.getElementById('author').value,
+                lcc: document.getElementById('lcc').value,
+                isbn: document.getElementById('isbn').value
+            };
+            const response = await fetch('/add_book', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const book = await response.json();
+            fullData.push(book);
+            renderTable(fullData);
+        }
+
+        function renderTable(data) {
+            const body = document.getElementById('resultBody');
+            body.innerHTML = data.map(b => `
+                <tr>
+                    <td>${b.title}</td><td>${b.author}</td>
+                    <td><span class="badge bg-info text-dark">${b.lcc}</span></td>
+                    <td><span class="badge bg-secondary">${b.ddc}</span></td>
+                    <td class="small text-muted text-break">${b.marc_preview}</td>
+                </tr>
+            `).join('');
+        }
+
+        function search(mode) {
+            const query = document.getElementById('searchInp').value.toLowerCase();
+            const filtered = fullData.filter(b => {
+                if (mode === 'starts') return b.title.toLowerCase().startsWith(query);
+                return b.title.toLowerCase().includes(query);
+            });
+            renderTable(filtered);
+        }
+    </script>
+</body>
+</html>
