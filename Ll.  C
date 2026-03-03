@@ -1,74 +1,77 @@
-from flask import Flask, render_center, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file
 import pandas as pd
-from pymarc import Record, Field
 import io
 
 app = Flask(__name__)
 
-# --- ACADEMIC MAPPING DATA (From your provided list) ---
-# This dictionary powers the "Auto-Classify" feature
-LCC_DDC_MAP = {
-    "AC": {"ddc": "081-089", "label": "Collections. Series. Collected works"},
-    "AE": {"ddc": "031-039", "label": "Encyclopedias"},
-    "AG": {"ddc": "030", "label": "Dictionaries & General Reference"},
-    "AI": {"ddc": "050", "label": "Periodicals--Indexes"},
-    "AM": {"ddc": "069", "label": "Museums. Collectors and collecting"},
-    "AN": {"ddc": "071-079", "label": "Newspapers"},
-    "AZ": {"ddc": "001.3", "label": "Humanities / History of scholarship"},
-    "B":  {"ddc": "100-109", "label": "Philosophy"},
-    "BC": {"ddc": "160", "label": "Logic"},
-    "BF": {"ddc": "150", "label": "Psychology"},
-    "BL": {"ddc": "291-295", "label": "Religions. Mythology"},
-    "BP": {"ddc": "297", "label": "Islam. Bahaism. Theosophy"},
-    "BQ": {"ddc": "294.3", "label": "Buddhism"},
-    "E":  {"ddc": "973", "label": "America / United States History"},
-    "DU": {"ddc": "994", "label": "Oceania / Australia History"},
-}
+# --- قاعدة بيانات التصنيف المرسلة من قبلك ---
+CLASSIFICATION_DATA = [
+    {"lcc": "AC", "lcc_desc": "Collections. Series. Collected works", "ddc": "081-089", "ddc_desc": "General collections"},
+    {"lcc": "AE", "lcc_desc": "Encyclopedias", "ddc": "031-039", "ddc_desc": "Encyclopedias & books of facts"},
+    {"lcc": "AG", "lcc_desc": "Dictionaries and other general reference works", "ddc": "030", "ddc_desc": "Encyclopedias & books of facts"},
+    {"lcc": "AI", "lcc_desc": "Newspapers--Indexes", "ddc": "071-079", "ddc_desc": "Journalism & newspapers"},
+    {"lcc": "AM", "lcc_desc": "Museums. Collectors and collecting", "ddc": "069", "ddc_desc": "Associations & museums"},
+    {"lcc": "AN", "lcc_desc": "Newspapers", "ddc": "071-079", "ddc_desc": "Journalism & newspapers"},
+    {"lcc": "AZ", "lcc_desc": "History of scholarship and learning", "ddc": "001.3", "ddc_desc": "Humanities"},
+    {"lcc": "B", "lcc_desc": "Philosophy", "ddc": "100-109", "ddc_desc": "Philosophy"},
+    {"lcc": "BC", "lcc_desc": "Logic", "ddc": "160", "ddc_desc": "Logic"},
+    {"lcc": "BF", "lcc_desc": "Psychology", "ddc": "150", "ddc_desc": "Psychology"},
+    {"lcc": "BJ", "lcc_desc": "Ethics", "ddc": "170", "ddc_desc": "Ethics"},
+    {"lcc": "BL", "lcc_desc": "Religions. Mythology", "ddc": "200", "ddc_desc": "Religion"},
+    {"lcc": "BP", "lcc_desc": "Islam. Bahaism. Theosophy", "ddc": "297", "ddc_desc": "Islam, Babism, Bahai Faith"},
+    {"lcc": "BQ", "lcc_desc": "Buddhism", "ddc": "294.3", "ddc_desc": "Buddhism"},
+    {"lcc": "BR", "lcc_desc": "Christianity", "ddc": "230", "ddc_desc": "Christianity"},
+    {"lcc": "E", "lcc_desc": "America / United States", "ddc": "973", "ddc_desc": "United States History"}
+]
 
-library_db = []
+library_store = []
 
 @app.route('/')
-def index():
+def home():
     return render_template('index.html')
 
-@app.route('/add_book', methods=['POST'])
-def add_book():
+@app.route('/process', methods=['POST'])
+def process():
     data = request.json
-    lcc_code = data.get('lcc', '').upper().strip()[:2]
+    lcc_input = data.get('lcc', '').upper().strip()
     
-    # Mapping Logic
-    mapping = LCC_DDC_MAP.get(lcc_code, {"ddc": "Unknown", "label": "General"})
-    ddc_result = mapping['ddc']
+    # البحث عن المطابقة في ملف التصنيف
+    match = next((item for item in CLASSIFICATION_DATA if lcc_input.startswith(item['lcc'])), None)
     
-    # Create Professional MARC21 Record
-    record = Record()
-    record.add_field(Field(tag='020', subfields=['a', data.get('isbn')]))
-    record.add_field(Field(tag='050', subfields=['a', data.get('lcc')]))
-    record.add_field(Field(tag='082', subfields=['a', ddc_result]))
-    record.add_field(Field(tag='100', subfields=['a', data.get('author')]))
-    record.add_field(Field(tag='245', subfields=['a', data.get('title')]))
+    ddc_val = match['ddc'] if match else "غير مصنف"
+    lcc_caption = match['lcc_desc'] if match else "غير معروف"
     
+    # صياغة بطاقة مارك 21 الأكاديمية
+    marc_card = (
+        f"LDR 00000nam a2200000 u 4500\n"
+        f"020 ## $a {data.get('isbn')}\n"
+        f"050 00 $a {lcc_input} $b .Mapping\n"
+        f"082 00 $a {ddc_val} $2 23\n"
+        f"100 1# $a {data.get('author')}\n"
+        f"245 10 $a {data.get('title')} / $c {data.get('author')}"
+    )
+
     entry = {
-        "id": len(library_db) + 1,
         "title": data.get('title'),
         "author": data.get('author'),
         "isbn": data.get('isbn'),
-        "lcc": data.get('lcc'),
-        "ddc": ddc_result,
-        "marc_preview": record.as_marc().hex()[:50] + "..."
+        "lcc": lcc_input,
+        "ddc": ddc_val,
+        "caption": lcc_caption,
+        "marc": marc_card
     }
-    library_db.append(entry)
+    library_store.append(entry)
     return jsonify(entry)
 
 @app.route('/export')
 def export():
-    df = pd.DataFrame(library_db)
+    if not library_store: return "القائمة فارغة"
+    df = pd.DataFrame(library_store)
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False)
     output.seek(0)
-    return send_file(output, attachment_filename="Library_Catalog.xlsx", as_attachment=True)
+    return send_file(output, as_attachment=True, download_name="Catalog_Report.xlsx")
 
 if __name__ == '__main__':
     app.run(debug=True)
-
