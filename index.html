@@ -1,56 +1,79 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Academic Library Management System</title>
-    <link href="https://cdn.jsdelivr.net" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام الفهرسة الأكاديمي</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net">
+    <link href="https://fonts.googleapis.com" rel="stylesheet">
     <style>
-        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .navbar { background-color: #1a237e; } /* Academic Blue */
-        .card-header { background-color: #eeeeee; font-weight: bold; }
+        body { font-family: 'Tajawal', sans-serif; background-color: #f4f7f6; }
+        .navbar { background-color: #002b5b; border-bottom: 4px solid #b8960c; }
+        .card { border: none; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .btn-primary { background-color: #002b5b; border: none; }
+        .marc-card { background: #222; color: #0f0; font-family: monospace; padding: 15px; border-radius: 8px; direction: ltr; white-space: pre-wrap; font-size: 0.85rem; }
+        .table thead { background-color: #002b5b; color: white; }
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-dark mb-4">
-        <div class="container">
-            <span class="navbar-brand">🏛️ Integrated Academic Cataloging System (MARC21)</span>
+    <nav class="navbar navbar-dark p-3 mb-4">
+        <div class="container text-center">
+            <h3 class="text-white w-100">🏛️ نظام إدارة الفهرسة والتصنيف (LCC - DDC)</h3>
         </div>
     </nav>
 
     <div class="container">
         <div class="row">
-            <!-- Add Book Section -->
-            <div class="col-md-4">
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header">Add New Catalog Entry</div>
-                    <div class="card-body">
-                        <div class="mb-2"><label>Title (245$a)</label><input id="title" class="form-control"></div>
-                        <div class="mb-2"><label>Author (100$a)</label><input id="author" class="form-control"></div>
-                        <div class="mb-2"><label>LCC Code (e.g., BP)</label><input id="lcc" class="form-control"></div>
-                        <div class="mb-3"><label>ISBN (020$a)</label><input id="isbn" class="form-control"></div>
-                        <button onclick="addBook()" class="btn btn-primary w-100">Add & Classify</button>
+            <!-- قسم الإضافة -->
+            <div class="col-lg-4">
+                <div class="card p-4 mb-4">
+                    <h5 class="mb-3 text-primary">إضافة كتاب جديد (MARC21)</h5>
+                    <div class="mb-3">
+                        <label class="form-label">العنوان</label>
+                        <input type="text" id="title" class="form-control">
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">المؤلف</label>
+                        <input type="text" id="author" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">رمز الكونجرس (LCC)</label>
+                        <input type="text" id="lcc" class="form-control" placeholder="مثال: BP أو AZ">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">الرقم الدولي (ISBN)</label>
+                        <input type="text" id="isbn" class="form-control">
+                    </div>
+                    <button onclick="addEntry()" class="btn btn-primary w-100">إضافة وتصنيف تلقائي</button>
                 </div>
             </div>
 
-            <!-- Results Section -->
-            <div class="col-md-8">
-                <div class="card shadow-sm">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        Catalog Search
-                        <a href="/export" class="btn btn-sm btn-success">📊 Export to Excel</a>
+            <!-- قسم البحث والنتائج -->
+            <div class="col-lg-8">
+                <div class="card p-4">
+                    <div class="d-flex justify-content-between mb-3">
+                        <h5 class="text-primary">سجل المقتنيات والنتائج</h5>
+                        <a href="/export" class="btn btn-sm btn-success">تصدير إكسل Excel</a>
                     </div>
-                    <div class="card-body">
-                        <div class="input-group mb-3">
-                            <input type="text" id="searchInp" class="form-control" placeholder="Search title...">
-                            <button class="btn btn-outline-secondary" onclick="search('starts')">Starts With</button>
-                            <button class="btn btn-outline-secondary" onclick="search('contains')">Contains</button>
-                        </div>
-                        <table class="table table-hover align-middle">
-                            <thead class="table-light">
-                                <tr><th>Title</th><th>Author</th><th>LCC</th><th>DDC</th><th>MARC21</th></tr>
+                    
+                    <div class="input-group mb-3">
+                        <input type="text" id="searchInp" class="form-control" placeholder="ابحث بالعنوان...">
+                        <button class="btn btn-outline-dark" onclick="searchData('starts')">يبدأ بـ</button>
+                        <button class="btn btn-outline-dark" onclick="searchData('contains')">يحتوي على</button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>العنوان</th>
+                                    <th>المؤلف</th>
+                                    <th>LCC</th>
+                                    <th>ديوي DDC</th>
+                                    <th>سجل MARC21</th>
+                                </tr>
                             </thead>
-                            <tbody id="resultBody"></tbody>
+                            <tbody id="resTable"></tbody>
                         </table>
                     </div>
                 </div>
@@ -59,44 +82,46 @@
     </div>
 
     <script>
-        let fullData = [];
+        let mainData = [];
 
-        async function addBook() {
-            const data = {
+        async function addEntry() {
+            const payload = {
                 title: document.getElementById('title').value,
                 author: document.getElementById('author').value,
                 lcc: document.getElementById('lcc').value,
                 isbn: document.getElementById('isbn').value
             };
-            const response = await fetch('/add_book', {
+            const res = await fetch('/process', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data)
+                body: JSON.stringify(payload)
             });
-            const book = await response.json();
-            fullData.push(book);
-            renderTable(fullData);
+            const item = await res.json();
+            mainData.push(item);
+            render(mainData);
+            alert("تم التصنيف بنجاح وفق ملف التصنيف المعتمد");
         }
 
-        function renderTable(data) {
-            const body = document.getElementById('resultBody');
-            body.innerHTML = data.map(b => `
+        function render(data) {
+            const html = data.map(item => `
                 <tr>
-                    <td>${b.title}</td><td>${b.author}</td>
-                    <td><span class="badge bg-info text-dark">${b.lcc}</span></td>
-                    <td><span class="badge bg-secondary">${b.ddc}</span></td>
-                    <td class="small text-muted text-break">${b.marc_preview}</td>
+                    <td><b>${item.title}</b></td>
+                    <td>${item.author}</td>
+                    <td><span class="badge bg-warning text-dark">${item.lcc}</span><br><small>${item.caption}</small></td>
+                    <td><span class="badge bg-info">${item.ddc}</span></td>
+                    <td><div class="marc-card">${item.marc}</div></td>
                 </tr>
             `).join('');
+            document.getElementById('resTable').innerHTML = html;
         }
 
-        function search(mode) {
-            const query = document.getElementById('searchInp').value.toLowerCase();
-            const filtered = fullData.filter(b => {
-                if (mode === 'starts') return b.title.toLowerCase().startsWith(query);
-                return b.title.toLowerCase().includes(query);
+        function searchData(mode) {
+            const q = document.getElementById('searchInp').value.toLowerCase();
+            const filtered = mainData.filter(i => {
+                if(mode === 'starts') return i.title.toLowerCase().startsWith(q);
+                return i.title.toLowerCase().includes(q);
             });
-            renderTable(filtered);
+            render(filtered);
         }
     </script>
 </body>
