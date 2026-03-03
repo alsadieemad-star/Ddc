@@ -1,35 +1,25 @@
-from flask import Flask, render_template, request, jsonify
-import pandas as pd
-import os
+// وظيفة تحويل البيانات إلى صيغة MARC
+function convertToMARC() {
+    const title = document.getElementById('title').value;
+    const author = document.getElementById('author').value;
+    const isbn = document.getElementById('isbn').value;
 
-app = Flask(__name__)
+    // صياغة مارك مبسطة
+    let marcResult = `LDR 00000nam a2200000 u 4500\n`;
+    marcResult += `020 $a ${isbn}\n`;
+    marcResult += `100 1# $a ${author}\n`;
+    marcResult += `245 10 $a ${title}`;
 
-# تحميل ملف الإكسل الذي يحتوي على بياناتك كاملة
-def load_data():
-    if os.path.exists('classification.xlsx'):
-        return pd.read_excel('classification.xlsx')
-    else:
-        # بيانات احتياطية في حال عدم وجود الملف
-        return pd.DataFrame(columns=['LCC', 'LCC_Caption', 'DDC', 'DDC_Caption'])
+    document.getElementById('marcOutput').innerText = marcResult;
+}
 
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/search', methods=['POST'])
-def search():
-    df = load_data()
-    data = request.json
-    query = str(data.get('query', '')).strip().upper()
-    column = data.get('column') # 'LCC' or 'DDC'
-    mode = data.get('mode') # 'starts' or 'contains'
-
-    if mode == 'starts':
-        results = df[df[column].astype(str).str.upper().str.startswith(query)]
-    else:
-        results = df[df[column].astype(str).str.upper().str.contains(query)]
-
-    return jsonify(results.to_dict(orient='records'))
-
-if __name__ == '__main__':
-    app.run(debug=True)
+// وظيفة تصدير البطاقة كملف نصي
+function exportCard() {
+    const content = document.getElementById('marcOutput').innerText;
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'catalog_card.txt';
+    a.click();
+}
