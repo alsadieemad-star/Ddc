@@ -2,127 +2,113 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام الفهرسة الأكاديمي</title>
+    <title>نظام الفهرسة الأكاديمي المتطور</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net">
-    <link href="https://fonts.googleapis.com" rel="stylesheet">
     <style>
-        body { font-family: 'Tajawal', sans-serif; background-color: #f4f7f6; }
-        .navbar { background-color: #002b5b; border-bottom: 4px solid #b8960c; }
-        .card { border: none; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .btn-primary { background-color: #002b5b; border: none; }
-        .marc-card { background: #222; color: #0f0; font-family: monospace; padding: 15px; border-radius: 8px; direction: ltr; white-space: pre-wrap; font-size: 0.85rem; }
-        .table thead { background-color: #002b5b; color: white; }
+        :root { --primary-color: #1a365d; --gold: #c5a021; }
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma; }
+        .header-panel { background: var(--primary-color); color: white; padding: 25px; border-bottom: 5px solid var(--gold); }
+        .card-title { color: var(--primary-color); font-weight: bold; border-right: 4px solid var(--gold); padding-right: 10px; }
+        .marc-terminal { background: #111; color: #00ff00; padding: 20px; font-family: 'Courier New'; direction: ltr; border-radius: 8px; box-shadow: inset 0 0 10px #000; }
+        .btn-gold { background: var(--gold); color: white; }
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-dark p-3 mb-4">
-        <div class="container text-center">
-            <h3 class="text-white w-100">🏛️ نظام إدارة الفهرسة والتصنيف (LCC - DDC)</h3>
-        </div>
-    </nav>
 
-    <div class="container">
-        <div class="row">
-            <!-- قسم الإضافة -->
-            <div class="col-lg-4">
-                <div class="card p-4 mb-4">
-                    <h5 class="mb-3 text-primary">إضافة كتاب جديد (MARC21)</h5>
-                    <div class="mb-3">
-                        <label class="form-label">العنوان</label>
-                        <input type="text" id="title" class="form-control">
+<div class="header-panel text-center mb-4">
+    <h2>🏛️ المنصة المركزية للفهرسة والتصنيف (MARC21 / RDA)</h2>
+</div>
+
+<div class="container-fluid px-5">
+    <div class="row">
+        <!-- لوحة البحث في التصانيف -->
+        <div class="col-md-5">
+            <div class="card shadow-sm p-4 mb-4">
+                <h5 class="card-title mb-4">أدوات استعلام التصنيف (من الملف المرفق)</h5>
+                
+                <div class="mb-4">
+                    <label class="form-label">البحث في رموز الكونجرس (LCC)</label>
+                    <div class="input-group">
+                        <input type="text" id="lccInput" class="form-control" placeholder="مثال: BP">
+                        <button class="btn btn-primary" onclick="ajaxSearch('LCC', 'starts')">يبدأ بـ</button>
+                        <button class="btn btn-outline-primary" onclick="ajaxSearch('LCC', 'contains')">يحتوي</button>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">المؤلف</label>
-                        <input type="text" id="author" class="form-control">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">البحث في رموز ديوي (DDC)</label>
+                    <div class="input-group">
+                        <input type="text" id="ddcInput" class="form-control" placeholder="مثال: 297">
+                        <button class="btn btn-dark" onclick="ajaxSearch('DDC', 'starts')">يبدأ بـ</button>
+                        <button class="btn btn-outline-dark" onclick="ajaxSearch('DDC', 'contains')">يحتوي</button>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">رمز الكونجرس (LCC)</label>
-                        <input type="text" id="lcc" class="form-control" placeholder="مثال: BP أو AZ">
+                </div>
+
+                <div id="searchResults" class="overflow-auto" style="max-height: 400px;"></div>
+            </div>
+        </div>
+
+        <!-- لوحة الفهرسة الوصفية RDA -->
+        <div class="col-md-7">
+            <div class="card shadow-sm p-4 mb-4">
+                <h5 class="card-title mb-4">وحدة الفهرسة الوصفية (RDA / MARC21)</h5>
+                <div class="row g-3">
+                    <div class="col-md-6"><label>المدخل الرئيسي (المؤلف)</label><input type="text" id="m100" class="form-control"></div>
+                    <div class="col-md-6"><label>العنوان الرئيسي</label><input type="text" id="m245a" class="form-control"></div>
+                    <div class="col-md-6"><label>العنوان الفرعي</label><input type="text" id="m245b" class="form-control"></div>
+                    <div class="col-md-6"><label>بيان المسؤولية</label><input type="text" id="m245c" class="form-control"></div>
+                    <div class="col-md-4"><label>بيان الطبعة</label><input type="text" id="m250" class="form-control"></div>
+                    <div class="col-md-4"><label>الناشر / التاريخ</label><input type="text" id="m264" class="form-control"></div>
+                    <div class="col-md-4"><label>الوصف المادي (ص، سم)</label><input type="text" id="m300" class="form-control"></div>
+                    <div class="col-md-4"><label>ISBN</label><input type="text" id="m020" class="form-control"></div>
+                    <div class="col-md-4"><label>رقم ديوي DDC</label><input type="text" id="m082" class="form-control"></div>
+                    <div class="col-md-2"><label>تصنيف LCC</label><input type="text" id="m050a" class="form-control"></div>
+                    <div class="col-md-2"><label>كتر نمبر</label><input type="text" id="m050b" class="form-control"></div>
+                    <div class="col-md-12"><label>رؤوس الموضوعات والملاحظات</label><textarea id="m650" class="form-control"></textarea></div>
+                    
+                    <div class="col-12 text-center mt-3">
+                        <button class="btn btn-primary btn-lg" onclick="buildMARC()">توليد بطاقة الفهرسة</button>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">الرقم الدولي (ISBN)</label>
-                        <input type="text" id="isbn" class="form-control">
-                    </div>
-                    <button onclick="addEntry()" class="btn btn-primary w-100">إضافة وتصنيف تلقائي</button>
                 </div>
             </div>
 
-            <!-- قسم البحث والنتائج -->
-            <div class="col-lg-8">
-                <div class="card p-4">
-                    <div class="d-flex justify-content-between mb-3">
-                        <h5 class="text-primary">سجل المقتنيات والنتائج</h5>
-                        <a href="/export" class="btn btn-sm btn-success">تصدير إكسل Excel</a>
-                    </div>
-                    
-                    <div class="input-group mb-3">
-                        <input type="text" id="searchInp" class="form-control" placeholder="ابحث بالعنوان...">
-                        <button class="btn btn-outline-dark" onclick="searchData('starts')">يبدأ بـ</button>
-                        <button class="btn btn-outline-dark" onclick="searchData('contains')">يحتوي على</button>
-                    </div>
-
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>العنوان</th>
-                                    <th>المؤلف</th>
-                                    <th>LCC</th>
-                                    <th>ديوي DDC</th>
-                                    <th>سجل MARC21</th>
-                                </tr>
-                            </thead>
-                            <tbody id="resTable"></tbody>
-                        </table>
-                    </div>
-                </div>
+            <div class="card shadow-sm p-4">
+                <h5 class="card-title">مخرج بطاقة MARC21 & RDA</h5>
+                <div id="marcOutput" class="marc-terminal">في انتظار البيانات...</div>
             </div>
         </div>
     </div>
+</div>
 
-    <script>
-        let mainData = [];
+<script>
+async function ajaxSearch(col, mode) {
+    const q = document.getElementById(col.toLowerCase() + 'Input').value;
+    const res = await fetch('/search', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({query: q, column: col, mode: mode})
+    });
+    const results = await res.json();
+    let html = '<table class="table table-sm table-bordered mt-2 small"><thead><tr><th>LCC</th><th>DDC</th></tr></thead><tbody>';
+    results.forEach(r => {
+        html += `<tr onclick="fillFields('${r.LCC}', '${r.DDC}')" style="cursor:pointer"><td>${r.LCC}<br><small>${r.LCC_Caption}</small></td><td>${r.DDC}<br><small>${r.DDC_Caption}</small></td></tr>`;
+    });
+    document.getElementById('searchResults').innerHTML = html + '</tbody></table>';
+}
 
-        async function addEntry() {
-            const payload = {
-                title: document.getElementById('title').value,
-                author: document.getElementById('author').value,
-                lcc: document.getElementById('lcc').value,
-                isbn: document.getElementById('isbn').value
-            };
-            const res = await fetch('/process', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
-            });
-            const item = await res.json();
-            mainData.push(item);
-            render(mainData);
-            alert("تم التصنيف بنجاح وفق ملف التصنيف المعتمد");
-        }
+function fillFields(lcc, ddc) {
+    document.getElementById('m050a').value = lcc;
+    document.getElementById('m082').value = ddc;
+}
 
-        function render(data) {
-            const html = data.map(item => `
-                <tr>
-                    <td><b>${item.title}</b></td>
-                    <td>${item.author}</td>
-                    <td><span class="badge bg-warning text-dark">${item.lcc}</span><br><small>${item.caption}</small></td>
-                    <td><span class="badge bg-info">${item.ddc}</span></td>
-                    <td><div class="marc-card">${item.marc}</div></td>
-                </tr>
-            `).join('');
-            document.getElementById('resTable').innerHTML = html;
-        }
-
-        function searchData(mode) {
-            const q = document.getElementById('searchInp').value.toLowerCase();
-            const filtered = mainData.filter(i => {
-                if(mode === 'starts') return i.title.toLowerCase().startsWith(q);
-                return i.title.toLowerCase().includes(q);
-            });
-            render(filtered);
-        }
-    </script>
+function buildMARC() {
+    const v = (id) => document.getElementById(id).value;
+    let m = `LDR 00000nam a2200000 i 4500\n`;
+    m += `020 ## $a ${v('m020')}\n050 00 $a ${v('m050a')} $b ${v('m050b')}\n082 04 $a ${v('m082')}\n100 1# $a ${v('m100')}\n`;
+    m += `245 10 $a ${v('m245a')} : $b ${v('m245b')} / $c ${v('m245c')}\n250 ## $a ${v('m250')}\n264 #1 $a ${v('m264')}\n`;
+    m += `300 ## $a ${v('m300')}\n336 ## $a text $2 rdacontent\n337 ## $a unmediated $2 rdamedia\n650 #4 $a ${v('m650')}`;
+    document.getElementById('marcOutput').innerText = m;
+}
+</script>
 </body>
 </html>
