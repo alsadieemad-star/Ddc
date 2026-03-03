@@ -1,9 +1,138 @@
-<div class="search-container">
-    <input type="text" id="searchInput" placeholder="أدخل كلمة البحث هنا...">
-    <div class="button-group">
-        <button onclick="searchContains()">يحتوي على</button>
-        <button onclick="searchStartsWith()">يبدأ بـ</button>
-        <button onclick="clearResults()" class="btn-danger">مسح النتائج</button>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>الموقع الأكاديمي للفهرسة والبحث</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root { --primary: #2c3e50; --secondary: #34495e; --accent: #27ae60; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .nav-buttons { margin-bottom: 20px; display: flex; gap: 10px; }
+        button { padding: 10px 20px; cursor: pointer; border: none; border-radius: 4px; transition: 0.3s; background: var(--primary); color: white; }
+        button:hover { opacity: 0.8; }
+        .search-section, .input-section { display: none; }
+        .active { display: block; }
+        input, textarea { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: right; }
+        th { background-color: var(--secondary); color: white; }
+        .marc-output { background: #eee; padding: 15px; border-right: 5px solid var(--accent); white-space: pre-wrap; font-family: monospace; }
+        .btn-delete { background: #e74c3c; }
+        .btn-export { background: var(--accent); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="nav-buttons">
+        <button onclick="showSection('search')">شاشة البحث</button>
+        <button onclick="showSection('input')">إدخال بطاقة جديدة (MARC)</button>
+    </div>
+
+    <div id="searchSection" class="search-section active">
+        <h2>البحث الأكاديمي في ملف Excel</h2>
+        <input type="file" id="uploadExcel" accept=".xlsx, .xls">
+        <input type="text" id="searchInput" placeholder="ابحث هنا...">
+        <div style="display: flex; gap: 10px;">
+            <button onclick="processSearch('contains')">يحتوي على</button>
+            <button onclick="processSearch('starts')">يبدأ بـ</button>
+            <button class="btn-delete" onclick="resetSearch()">مسح النتائج والعودة</button>
+        </div>
+        <div id="results"></div>
+    </div>
+
+    <div id="inputSection" class="input-section">
+        <h2>إدخال بطاقة فهرسة جديدة</h2>
+        <div id="entryForm">
+            <input type="text" id="m020" placeholder="الرقم المعياري ISBN (020)">
+            <input type="text" id="m100" placeholder="المؤلف (100)">
+            <input type="text" id="m245" placeholder="العنوان (245)">
+            <input type="text" id="m260" placeholder="بيانات النشر (260)">
+            <button onclick="convertToMARC()">تحويل إلى صيغة MARC</button>
+        </div>
+        <div id="marcResult" style="margin-top:20px; display:none;">
+            <h3>نتائج تحويل MARC 21:</h3>
+            <div class="marc-output" id="marcText"></div>
+            <button class="btn-export" onclick="exportMARC()">تصدير البطاقة (TXT)</button>
+        </div>
     </div>
 </div>
-<div id="resultsArea"></div>
+
+<script>
+    let excelData = [];
+
+    // وظيفة التنقل بين الصفحات
+    function showSection(section) {
+        document.querySelectorAll('.search-section, .input-section').forEach(s => s.classList.remove('active'));
+        if(section === 'search') document.getElementById('searchSection').classList.add('active');
+        else document.getElementById('inputSection').classList.add('active');
+    }
+
+    // قراءة ملف الإكسل
+    document.getElementById('uploadExcel').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const data = new Uint8Array(event.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            excelData = XLSX.utils.sheet_to_json(firstSheet);
+            alert("تم تحميل ملف الإكسل بنجاح!");
+        };
+        reader.readAsArrayBuffer(file);
+    });
+
+    // منطق البحث
+    function processSearch(type) {
+        const term = document.getElementById('searchInput').value.toLowerCase();
+        if(!term) return alert("يرجى إدخال كلمة بحث");
+
+        const filtered = excelData.filter(row => {
+            return Object.values(row).some(val => {
+                const strVal = String(val).toLowerCase();
+                return type === 'contains' ? strVal.includes(term) : strVal.startsWith(term);
+            });
+        });
+        displayResults(filtered);
+    }
+
+    function displayResults(data) {
+        let html = `<table><tr>${Object.keys(excelData[0] || {}).map(k => `<th>${k}</th>`).join('')}</tr>`;
+        data.forEach(row => {
+            html += `<tr>${Object.values(row).map(v => `<td>${v}</td>`).join('')}</tr>`;
+        });
+        html += `</table>`;
+        document.getElementById('results').innerHTML = data.length ? html : "لا توجد نتائج.";
+    }
+
+    function resetSearch() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('results').innerHTML = '';
+        document.getElementById('uploadExcel').value = '';
+    }
+
+    // محول MARC وتصديره
+    function convertToMARC() {
+        const isbn = document.getElementById('m020').value;
+        const author = document.getElementById('m100').value;
+        const title = document.getElementById('m245').value;
+        const pub = document.getElementById('m260').value;
+
+        const marc = `LDR 00000nam a2200000 u 4500\n020 ## $a ${isbn}\n100 1# $a ${author}\n245 10 $a ${title}\n260 ## $a ${pub}`;
+        document.getElementById('marcText').innerText = marc;
+        document.getElementById('marcResult').style.display = 'block';
+    }
+
+    function exportMARC() {
+        const text = document.getElementById('marcText').innerText;
+        const blob = new Blob([text], {type: 'text/plain'});
+        const anchor = document.createElement('a');
+        anchor.download = 'marc_record.txt';
+        anchor.href = window.URL.createObjectURL(blob);
+        anchor.click();
+    }
+</script>
+
+</body>
+</html>
